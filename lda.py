@@ -113,7 +113,7 @@ def get_topic_lists_from_pdf(file, num_topics, words_per_topic):
 
     return topics_ls
 
-def topics_from_pdf(llm, file, num_topics, words_per_topic):
+def topics_from_pdf(file, num_topics, words_per_topic):
     """
     Generates descriptive prompts for LLM based on topic words extracted from a
     PDF document.
@@ -170,6 +170,10 @@ def topics_from_pdf(llm, file, num_topics, words_per_topic):
         Lists: """{string_lda}""" '''
 
     # LLM call
+    llm = AzureChatOpenAI(azure_endpoint=azure_oai_endpoint,
+                        api_key=azure_openai_api_key, 
+                        api_version="2023-09-01-preview",
+                        azure_deployment=azure_oai_deployment)
     prompt_template = ChatPromptTemplate.from_template(template_string)
     chain = LLMChain(llm=llm, prompt=prompt_template)
     response = chain.run({
@@ -188,17 +192,13 @@ if __name__ == "__main__":
     #         api_key=azure_oai_key,
     #         api_version="2023-09-01-preview")
     
-    llm = AzureChatOpenAI(azure_endpoint=azure_oai_endpoint,
-                        api_key=azure_openai_api_key, 
-                        api_version="2023-09-01-preview",
-                        azure_deployment=azure_oai_deployment)
-    
-    file = "./the-metamorphosis.pdf"
+       
+    file = "./pdfdocs/Bayesian_neuralnetworks.pdf"
 
-    num_topics = 6
+    num_topics = 3
     words_per_topic = 30
 
-    summary = topics_from_pdf(llm, file, num_topics, words_per_topic)
+    summary = topics_from_pdf(file, num_topics, words_per_topic)
 
     print(summary)
 

@@ -1,9 +1,9 @@
 import streamlit as st
+import os
+from lda import topics_from_pdf
+from kgraph import crate_embedding_vector, build_knowledge_graph, draw_graph
 from dotenv import load_dotenv
 from chat import embedding_func, fields_definition, create_vector_store, create_llm
-
-# Get configuration settings 
-load_dotenv()
 
 def main():
     st.title("Document Query Application")
@@ -32,8 +32,21 @@ def main():
         if st.button("Submit", key=submit_button_key):
             if query:
                 # Process the query and store message/response in history
-                response = chat.invoke({"query": query})
-                st.session_state.message_history.append((query, response))
+                # response = chat.invoke({"query": query})
+                try:
+                    response = chat.invoke({"query": query})
+                    # Accessing the list of documents
+                    documents = response['source_documents']
+
+                    # Extracting metadata from each document
+                    response_metadata = set()
+                    for document in documents:
+                        response_metadata.add(document.metadata['source'])
+
+                    message = f'Query: {response["query"]} : , Response: {response["result"]}, Source Documents: {response_metadata}'
+                    st.session_state.message_history.append((query, message))
+                except Exception as e:
+                    st.error(f"An error occurred: {e}")
 
     with col2:
         if st.button("Exit", key=exit_button_key):
@@ -46,5 +59,45 @@ def main():
         st.write(f"   **Bot:** {resp}")
         st.write("")
 
+def topic_extraction_tool():
+    st.title("Topic Extraction Tool")
+
+    file_path = "./pdfdocs/Bayesian_neuralnetworks.pdf"
+    file_name = os.path.basename(file_path)
+    
+    num_topics = st.slider("Number of Topics", min_value=1, max_value=10, value=3)
+    words_per_topic = st.slider("Words per Topic", min_value=5, max_value=50)
+
+    if st.button("Submit"):
+        # Call method from main_script
+        # You may need to adjust the parameters based on the method signature
+        summary = topics_from_pdf(file_path, num_topics, words_per_topic)
+
+        # Display the summary with file name as title
+        st.write(f"### {file_name}")
+        st.write(summary)
+
+def document_similarity_index():
+    st.title("Document Similarity Index - Cosine Similarity")
+
+    embedding_vector = {}
+    dir = "./TextFiles"
+    embedding_vector = crate_embedding_vector(dir, embedding_vector)
+    knowledge_graph = build_knowledge_graph(embedding_vector)
+
+    # Display similarity matrix
+    st.write("Cosine Similarity Matrix:")
+   # Display the graph image
+    st.image(draw_graph(knowledge_graph), use_column_width=True)
+
 if __name__ == "__main__":
-    main()
+    page = st.sidebar.selectbox(
+        "Select a page:",
+        ["Document Query Application", "Topic Extraction Tool", "Document Similarity Index - Cosine Similarity"]
+    )
+    if page == "Document Query Application":
+        main()
+    elif page == "Topic Extraction Tool":
+        topic_extraction_tool()
+    elif page == "Document Similarity Index - Cosine Similarity":
+        document_similarity_index()

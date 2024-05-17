@@ -119,18 +119,20 @@ def create_vector_store(embeddings, fields, sc):
     )
     return vector_store
 def create_llm(vector_store):
-    azureai_retriever = vector_store.as_retriever()
-    azureai_retriever.invoke("How is Windows OEM revenue growth?")
+    azureai_retriever = vector_store.as_retriever(fetch_k=3, fetch_metadata=True)
+    # azureai_retriever.invoke("How is Windows OEM revenue growth?")
 
     llm = AzureChatOpenAI(azure_endpoint=azure_oai_endpoint,
                         api_key=azure_openai_api_key, 
                         api_version="2023-09-01-preview",
-                        azure_deployment=azure_oai_deployment)
+                        azure_deployment=azure_oai_deployment,
+                        temperature=0.1)
     chat = RetrievalQA.from_chain_type(
         llm=llm,
         chain_type='stuff',
         retriever=azureai_retriever,
         metadata={"application_type": "question_answering"},
+        return_source_documents=True,
     )
     return chat
 
@@ -144,5 +146,16 @@ if __name__ == "__main__":
     query = "How is Windows OEM revenue growth?"
     # query = "who is General Manager, Investor Relations"
     # query = "Activision Blizzard"
+    try:
+        response = chat.invoke({"query": query})
+        # Accessing the list of documents
+        documents = response['source_documents']
 
-    print(chat.invoke({"query": query}))
+        # Extracting metadata from each document
+        response_metadata = set()
+        for document in documents:
+            response_metadata.add(document.metadata['source'])
+
+        print(f'Query: {response["query"]} : , Response: {response["result"]}, Source Documents: {response_metadata}')
+    except Exception as e:
+        print(f"An error occurred: {e}")
